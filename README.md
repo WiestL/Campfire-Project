@@ -35,3 +35,17 @@ dotnet user-secrets set "Stripe:SecretKey" "sk_test_..."
 dotnet user-secrets set "Stripe:PublishableKey" "pk_test_..."
 dotnet user-secrets set "Stripe:WebhookSecret" "whsec_..."
 ```
+
+## Admin account
+
+Admin accounts can't be created via `/api/auth/register` (only `Creator`/`Member`
+can self-register). Instead, the API seeds a single Admin on startup from the
+`AdminSeed` config section, if one doesn't already exist. In dev,
+`appsettings.Development.json` ships with a default (`admin@campfire.local` /
+`dev-only-admin-password-change-me`) — change it for anything beyond local dev:
+
+```bash
+cd src/Campfire.Api
+dotnet user-secrets set "AdminSeed:Email" "you@example.com"
+dotnet user-secrets set "AdminSeed:Password" "a-real-password"
+```

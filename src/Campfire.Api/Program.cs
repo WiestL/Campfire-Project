@@ -4,6 +4,7 @@ using Campfire.Api.Options;
 using Campfire.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Stripe;
 
@@ -25,6 +26,8 @@ StripeConfiguration.ApiKey = builder.Configuration[$"{StripeOptions.SectionName}
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+
+builder.Services.Configure<AdminSeedOptions>(builder.Configuration.GetSection(AdminSeedOptions.SectionName));
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 
@@ -56,6 +59,13 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CampfireDbContext>();
+    var adminSeedOptions = scope.ServiceProvider.GetRequiredService<IOptions<AdminSeedOptions>>();
+    await AdminSeeder.EnsureAdminSeededAsync(db, adminSeedOptions);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
