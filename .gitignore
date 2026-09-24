@@ -12,6 +12,9 @@ dist-ssr/
 # Local tooling
 .claude/
 
+# Generated meeting handouts
+*.pdf
+
 # dotenv files
 .env
 
