@@ -1,4 +1,5 @@
 import { useAuth } from '../auth/AuthContext'
+import { Feed } from '../components/Feed'
 
 export function MemberDashboard() {
   const { user, logout } = useAuth()
@@ -13,11 +14,6 @@ export function MemberDashboard() {
 
       <section className="dashboard-grid">
         <article className="dashboard-card">
-          <h2>Feed</h2>
-          <p>Exclusive posts from your subscriptions.</p>
-          <p className="placeholder">Coming in Week 3</p>
-        </article>
-        <article className="dashboard-card">
           <h2>Membership</h2>
           <p>Manage your subscription and payment methods.</p>
           <p className="placeholder">Coming in Week 6</p>
@@ -28,6 +24,9 @@ export function MemberDashboard() {
           <p className="placeholder">Coming in Week 8</p>
         </article>
       </section>
+
+      <h2 className="feed-heading">Feed</h2>
+      <Feed />
     </div>
   )
 }

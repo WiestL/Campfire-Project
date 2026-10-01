@@ -15,6 +15,10 @@ dist-ssr/
 # Generated meeting handouts
 *.pdf
 
+# Locally uploaded media (dev-only, until CDN delivery lands in Week 5)
+src/Campfire.Api/wwwroot/uploads/*
+!src/Campfire.Api/wwwroot/uploads/.gitkeep
+
 # dotenv files
 .env
 

@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { RoleDashboard } from './pages/RoleDashboard'
+import { NewContentPage } from './pages/NewContentPage'
 import './App.css'
 
 function App() {
@@ -15,6 +16,14 @@ function App() {
         element={
           <ProtectedRoute>
             <RoleDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/content/new"
+        element={
+          <ProtectedRoute allowedRoles={['Creator', 'Admin']}>
+            <NewContentPage />
           </ProtectedRoute>
         }
       />

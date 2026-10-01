@@ -24,12 +24,19 @@
   font-size: 14px;
 }
 
+.auth-form.wide {
+  max-width: 520px;
+}
+
 .auth-form input,
-.auth-form select {
+.auth-form select,
+.auth-form textarea {
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
   font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
 }
 
 .auth-form button {
@@ -83,4 +90,62 @@
   font-size: 12px;
   color: var(--text-muted, #6b7280);
   margin-top: 12px;
+}
+
+.dashboard-card a {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.feed-heading {
+  margin-top: 40px;
+}
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feed-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+
+.feed-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.feed-item-header h3 {
+  margin: 0;
+}
+
+.feed-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.feed-meta {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  margin: 4px 0 10px;
+}
+
+.feed-media {
+  width: 100%;
+  max-width: 480px;
+  margin-top: 10px;
+  border-radius: 8px;
 }

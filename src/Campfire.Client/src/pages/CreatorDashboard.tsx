@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { Feed } from '../components/Feed'
 
 export function CreatorDashboard() {
   const { user, logout } = useAuth()
@@ -15,7 +17,7 @@ export function CreatorDashboard() {
         <article className="dashboard-card">
           <h2>Content</h2>
           <p>Publish and manage posts.</p>
-          <p className="placeholder">Coming in Week 3</p>
+          <Link to="/content/new">New post</Link>
         </article>
         <article className="dashboard-card">
           <h2>Membership Tiers</h2>
@@ -28,6 +30,9 @@ export function CreatorDashboard() {
           <p className="placeholder">Coming in Week 9</p>
         </article>
       </section>
+
+      <h2 className="feed-heading">Feed</h2>
+      <Feed />
     </div>
   )
 }

@@ -45,3 +45,21 @@ export async function apiFetch<T>(
 
   return (await response.json()) as T
 }
+
+export async function apiUpload<T>(path: string, file: File, token?: string | null): Promise<T> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, { method: 'POST', body: formData, headers })
+
+  if (!response.ok) {
+    throw new ApiRequestError(await parseErrorMessage(response))
+  }
+
+  return (await response.json()) as T
+}
