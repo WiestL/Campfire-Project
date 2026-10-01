@@ -12,8 +12,9 @@ dist-ssr/
 # Local tooling
 .claude/
 
-# Generated meeting handouts
+# Generated meeting handouts and course/status documents
 *.pdf
+docs/
 
 # Locally uploaded media (dev-only, until CDN delivery lands in Week 5)
 src/Campfire.Api/wwwroot/uploads/*
