@@ -8,6 +8,12 @@ Self-hosted creator membership platform (personal Patreon alternative).
 - `src/Campfire.Client` — React + Vite + TypeScript frontend
 - `docker-compose.yml` — local PostgreSQL instance
 
+## Prerequisites
+
+- .NET 10 SDK
+- Node 24+
+- Docker (for local PostgreSQL)
+
 ## Getting started
 
 ```bash
