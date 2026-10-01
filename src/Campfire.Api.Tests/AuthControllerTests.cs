@@ -6,10 +6,10 @@ using Campfire.Api.Options;
 using Campfire.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace Campfire.Api.Tests;
 
+[TestFixture]
 public class AuthControllerTests
 {
     private static AuthController CreateController(CampfireDbContext db)
@@ -33,7 +33,7 @@ public class AuthControllerTests
         return new CampfireDbContext(options);
     }
 
-    [Fact]
+    [Test]
     public async Task Register_CreatesUser_AndReturnsToken()
     {
         await using var db = CreateDb();
@@ -41,14 +41,16 @@ public class AuthControllerTests
 
         var result = await controller.Register(new RegisterRequest("creator@example.com", "password123", "Creator One", UserRole.Creator));
 
-        var ok = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<AuthResponse>(ok.Value);
-        Assert.Equal(UserRole.Creator, response.Role);
-        Assert.False(string.IsNullOrEmpty(response.Token));
-        Assert.Single(db.Users);
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result.Result!;
+        Assert.That(ok.Value, Is.InstanceOf<AuthResponse>());
+        var response = (AuthResponse)ok.Value!;
+        Assert.That(response.Role, Is.EqualTo(UserRole.Creator));
+        Assert.That(string.IsNullOrEmpty(response.Token), Is.False);
+        Assert.That(db.Users, Has.Exactly(1).Items);
     }
 
-    [Fact]
+    [Test]
     public async Task Register_RejectsAdminRole()
     {
         await using var db = CreateDb();
@@ -56,11 +58,11 @@ public class AuthControllerTests
 
         var result = await controller.Register(new RegisterRequest("admin@example.com", "password123", "Admin", UserRole.Admin));
 
-        Assert.IsType<BadRequestObjectResult>(result.Result);
-        Assert.Empty(db.Users);
+        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
+        Assert.That(db.Users, Is.Empty);
     }
 
-    [Fact]
+    [Test]
     public async Task Register_RejectsDuplicateEmail()
     {
         await using var db = CreateDb();
@@ -69,11 +71,11 @@ public class AuthControllerTests
 
         var result = await controller.Register(new RegisterRequest("member@example.com", "password456", "Member Two", UserRole.Member));
 
-        Assert.IsType<ConflictObjectResult>(result.Result);
-        Assert.Single(db.Users);
+        Assert.That(result.Result, Is.InstanceOf<ConflictObjectResult>());
+        Assert.That(db.Users, Has.Exactly(1).Items);
     }
 
-    [Fact]
+    [Test]
     public async Task Login_WithCorrectPassword_ReturnsToken()
     {
         await using var db = CreateDb();
@@ -82,11 +84,12 @@ public class AuthControllerTests
 
         var result = await controller.Login(new LoginRequest("member@example.com", "password123"));
 
-        var ok = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.IsType<AuthResponse>(ok.Value);
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result.Result!;
+        Assert.That(ok.Value, Is.InstanceOf<AuthResponse>());
     }
 
-    [Fact]
+    [Test]
     public async Task Login_WithWrongPassword_ReturnsUnauthorized()
     {
         await using var db = CreateDb();
@@ -95,6 +98,6 @@ public class AuthControllerTests
 
         var result = await controller.Login(new LoginRequest("member@example.com", "wrong-password"));
 
-        Assert.IsType<UnauthorizedObjectResult>(result.Result);
+        Assert.That(result.Result, Is.InstanceOf<UnauthorizedObjectResult>());
     }
 }

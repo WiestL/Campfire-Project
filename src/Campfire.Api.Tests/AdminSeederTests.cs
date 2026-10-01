@@ -3,10 +3,10 @@ using Campfire.Api.Models;
 using Campfire.Api.Options;
 using Campfire.Api.Services;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
 
 namespace Campfire.Api.Tests;
 
+[TestFixture]
 public class AdminSeederTests
 {
     private static CampfireDbContext CreateDb()
@@ -17,7 +17,7 @@ public class AdminSeederTests
         return new CampfireDbContext(options);
     }
 
-    [Fact]
+    [Test]
     public async Task EnsureAdminSeededAsync_CreatesAdmin_WhenNoneExists()
     {
         await using var db = CreateDb();
@@ -30,13 +30,14 @@ public class AdminSeederTests
 
         await AdminSeeder.EnsureAdminSeededAsync(db, options);
 
-        var admin = Assert.Single(db.Users);
-        Assert.Equal(UserRole.Admin, admin.Role);
-        Assert.Equal("admin@campfire.local", admin.Email);
-        Assert.True(BCrypt.Net.BCrypt.Verify("seed-password-123", admin.PasswordHash));
+        Assert.That(db.Users, Has.Exactly(1).Items);
+        var admin = db.Users.Single();
+        Assert.That(admin.Role, Is.EqualTo(UserRole.Admin));
+        Assert.That(admin.Email, Is.EqualTo("admin@campfire.local"));
+        Assert.That(BCrypt.Net.BCrypt.Verify("seed-password-123", admin.PasswordHash), Is.True);
     }
 
-    [Fact]
+    [Test]
     public async Task EnsureAdminSeededAsync_DoesNothing_WhenAdminAlreadyExists()
     {
         await using var db = CreateDb();
@@ -59,10 +60,10 @@ public class AdminSeederTests
 
         await AdminSeeder.EnsureAdminSeededAsync(db, options);
 
-        Assert.Single(db.Users);
+        Assert.That(db.Users, Has.Exactly(1).Items);
     }
 
-    [Fact]
+    [Test]
     public async Task EnsureAdminSeededAsync_DoesNothing_WhenNoCredentialsConfigured()
     {
         await using var db = CreateDb();
@@ -70,6 +71,6 @@ public class AdminSeederTests
 
         await AdminSeeder.EnsureAdminSeededAsync(db, options);
 
-        Assert.Empty(db.Users);
+        Assert.That(db.Users, Is.Empty);
     }
 }
