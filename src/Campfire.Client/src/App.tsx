@@ -4,6 +4,7 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { RoleDashboard } from './pages/RoleDashboard'
 import { NewContentPage } from './pages/NewContentPage'
+import { TierManagementPage } from './pages/TierManagementPage'
 import './App.css'
 
 function App() {
@@ -24,6 +25,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['Creator', 'Admin']}>
             <NewContentPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tiers"
+        element={
+          <ProtectedRoute allowedRoles={['Creator', 'Admin']}>
+            <TierManagementPage />
           </ProtectedRoute>
         }
       />

@@ -47,6 +47,23 @@ export interface UploadResponse {
   sizeBytes: number
 }
 
+export interface Tier {
+  id: string
+  creatorId: string
+  creatorDisplayName: string
+  name: string
+  description: string
+  price: number
+  level: number
+}
+
+export interface TierRequest {
+  name: string
+  description: string
+  price: number
+  level: number
+}
+
 export interface ApiError {
   message: string
 }

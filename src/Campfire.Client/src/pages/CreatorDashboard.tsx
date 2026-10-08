@@ -22,7 +22,7 @@ export function CreatorDashboard() {
         <article className="dashboard-card">
           <h2>Membership Tiers</h2>
           <p>Define pricing and access levels.</p>
-          <p className="placeholder">Coming in Week 4</p>
+          <Link to="/tiers">Manage tiers</Link>
         </article>
         <article className="dashboard-card">
           <h2>Analytics</h2>
