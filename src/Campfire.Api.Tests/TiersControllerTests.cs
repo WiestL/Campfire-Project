@@ -95,6 +95,35 @@ public class TiersControllerTests
     }
 
     [Test]
+    public async Task GetById_KnownId_ReturnsTier()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var controller = CreateController(db, creator.Id);
+        var created = await controller.Create(new CreateTierRequest("Gold", "desc", 20m, 2));
+        var tierId = ((TierResponse)((OkObjectResult)created.Result!).Value!).Id;
+
+        var result = await controller.GetById(tierId);
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var response = (TierResponse)((OkObjectResult)result.Result!).Value!;
+        Assert.That(response.Id, Is.EqualTo(tierId));
+        Assert.That(response.Name, Is.EqualTo("Gold"));
+    }
+
+    [Test]
+    public async Task Create_WithUnknownActingUser_ReturnsUnauthorized()
+    {
+        await using var db = CreateDb();
+        var controller = CreateController(db, Guid.NewGuid());
+
+        var result = await controller.Create(new CreateTierRequest("Gold", "desc", 20m, 2));
+
+        Assert.That(result.Result, Is.InstanceOf<UnauthorizedResult>());
+        Assert.That(db.MembershipTiers, Is.Empty);
+    }
+
+    [Test]
     public async Task Update_ByOwningCreator_Succeeds()
     {
         await using var db = CreateDb();
@@ -109,6 +138,18 @@ public class TiersControllerTests
         var response = (TierResponse)((OkObjectResult)result.Result!).Value!;
         Assert.That(response.Name, Is.EqualTo("Gold+"));
         Assert.That(response.Price, Is.EqualTo(25m));
+    }
+
+    [Test]
+    public async Task Update_UnknownId_ReturnsNotFound()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var controller = CreateController(db, creator.Id);
+
+        var result = await controller.Update(Guid.NewGuid(), new UpdateTierRequest("Gold", "desc", 20m, 2));
+
+        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
     }
 
     [Test]
@@ -140,6 +181,18 @@ public class TiersControllerTests
 
         Assert.That(result, Is.InstanceOf<NoContentResult>());
         Assert.That(db.MembershipTiers, Is.Empty);
+    }
+
+    [Test]
+    public async Task Delete_UnknownId_ReturnsNotFound()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var controller = CreateController(db, creator.Id);
+
+        var result = await controller.Delete(Guid.NewGuid());
+
+        Assert.That(result, Is.InstanceOf<NotFoundResult>());
     }
 
     [Test]
