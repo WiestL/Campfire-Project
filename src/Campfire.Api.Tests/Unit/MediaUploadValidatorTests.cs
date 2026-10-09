@@ -1,7 +1,9 @@
 using Campfire.Api.Services;
 
-namespace Campfire.Api.Tests;
+namespace Campfire.Api.Tests.Unit;
 
+[Category("Unit Tests")]
+[Category("A MediaUploadValidator")]
 [TestFixture]
 public class MediaUploadValidatorTests
 {

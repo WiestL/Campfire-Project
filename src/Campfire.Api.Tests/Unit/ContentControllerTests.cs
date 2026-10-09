@@ -9,8 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
-namespace Campfire.Api.Tests;
+namespace Campfire.Api.Tests.Unit;
 
+[Category("Unit Tests")]
+[Category("A ContentController")]
 [TestFixture]
 public class ContentControllerTests
 {

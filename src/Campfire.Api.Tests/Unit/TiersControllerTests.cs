@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Campfire.Api.Tests;
+namespace Campfire.Api.Tests.Unit;
 
+[Category("Unit Tests")]
+[Category("A TiersController")]
 [TestFixture]
 public class TiersControllerTests
 {

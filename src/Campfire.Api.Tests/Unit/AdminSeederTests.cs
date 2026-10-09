@@ -4,8 +4,10 @@ using Campfire.Api.Options;
 using Campfire.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace Campfire.Api.Tests;
+namespace Campfire.Api.Tests.Unit;
 
+[Category("Unit Tests")]
+[Category("An AdminSeeder")]
 [TestFixture]
 public class AdminSeederTests
 {

@@ -7,8 +7,10 @@ using Campfire.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Campfire.Api.Tests;
+namespace Campfire.Api.Tests.Unit;
 
+[Category("Unit Tests")]
+[Category("An AuthController")]
 [TestFixture]
 public class AuthControllerTests
 {
