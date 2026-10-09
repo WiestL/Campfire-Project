@@ -117,4 +117,85 @@ public class ContentControllerTests
         Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
         Assert.That(db.Content, Has.Exactly(1).Items);
     }
+
+    [Test]
+    public async Task Create_AudioWithoutMediaUrl_IsRejected()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var controller = CreateController(db, creator.Id);
+
+        var result = await controller.Create(new CreateContentRequest(
+            ContentType.Audio, "My podcast", "Body text", null, null, Publish: true));
+
+        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
+        Assert.That(db.Content, Is.Empty);
+    }
+
+    [Test]
+    public async Task Create_WithUnknownActingUser_ReturnsUnauthorized()
+    {
+        await using var db = CreateDb();
+        var controller = CreateController(db, Guid.NewGuid());
+
+        var result = await controller.Create(new CreateContentRequest(
+            ContentType.Text, "Hello", "Body", null, null, Publish: true));
+
+        Assert.That(result.Result, Is.InstanceOf<UnauthorizedResult>());
+        Assert.That(db.Content, Is.Empty);
+    }
+
+    private static FormFile CreateFormFile(string fileName, int sizeBytes)
+    {
+        var stream = new MemoryStream(new byte[sizeBytes]);
+        return new FormFile(stream, 0, sizeBytes, "file", fileName);
+    }
+
+    [Test]
+    public async Task Upload_EmptyFile_ReturnsBadRequest()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var controller = CreateController(db, creator.Id);
+        var file = CreateFormFile("clip.mp4", 0);
+
+        var result = await controller.Upload(file);
+
+        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
+    }
+
+    [Test]
+    public async Task Upload_UnsupportedFileType_ReturnsBadRequest()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var controller = CreateController(db, creator.Id);
+        var file = CreateFormFile("malware.exe", 1024);
+
+        var result = await controller.Upload(file);
+
+        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
+    }
+
+    [Test]
+    public async Task Upload_ValidFile_SavesAndReturnsUrl()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var controller = CreateController(db, creator.Id);
+        var file = CreateFormFile("clip.mp4", 1024);
+
+        var result = await controller.Upload(file);
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var response = (UploadResponse)((OkObjectResult)result.Result!).Value!;
+        Assert.That(response.Url, Does.StartWith("/uploads/"));
+        Assert.That(response.Url, Does.EndWith(".mp4"));
+        Assert.That(response.FileName, Is.EqualTo("clip.mp4"));
+        Assert.That(response.SizeBytes, Is.EqualTo(1024));
+
+        var savedPath = Path.Combine(Path.GetTempPath(), "uploads", Path.GetFileName(response.Url));
+        Assert.That(File.Exists(savedPath), Is.True);
+        File.Delete(savedPath);
+    }
 }
