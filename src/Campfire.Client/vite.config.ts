@@ -11,7 +11,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/uploads': {
+      '/media': {
         target: 'https://localhost:7058',
         changeOrigin: true,
         secure: false,

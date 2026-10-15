@@ -36,13 +36,13 @@ export interface CreateContentRequest {
   type: ContentType
   title: string
   body: string
-  mediaUrl: string | null
+  mediaPath: string | null
   requiredTierId: string | null
   publish: boolean
 }
 
 export interface UploadResponse {
-  url: string
+  storagePath: string
   fileName: string
   sizeBytes: number
 }

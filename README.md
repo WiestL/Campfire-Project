@@ -55,3 +55,25 @@ cd src/Campfire.Api
 dotnet user-secrets set "AdminSeed:Email" "you@example.com"
 dotnet user-secrets set "AdminSeed:Password" "a-real-password"
 ```
+
+## Media delivery (CDN)
+
+Video/audio uploads go through `IMediaStorage`, with two implementations:
+
+- **Local** (default) — saves to `wwwroot/media` and serves it back through
+  `MediaController`, which validates a signed, time-limited URL using the same
+  token-auth scheme Bunny.net uses. No external account needed for local dev.
+- **Bunny** — uploads to a Bunny.net Storage Zone and signs Pull Zone URLs for
+  playback. Enable it once you have a Bunny.net account:
+
+```bash
+cd src/Campfire.Api
+dotnet user-secrets set "Cdn:Provider" "Bunny"
+dotnet user-secrets set "Cdn:StorageZoneName" "your-zone"
+dotnet user-secrets set "Cdn:StorageApiKey" "your-storage-api-key"
+dotnet user-secrets set "Cdn:PullZoneHostname" "your-zone.b-cdn.net"
+dotnet user-secrets set "Cdn:SigningKey" "your-pull-zone-token-auth-key"
+```
+
+Signed URLs default to a 1-hour expiry (`Cdn:UrlExpirySeconds`), generated fresh
+on every `/api/content` response rather than stored statically.

@@ -16,9 +16,9 @@ dist-ssr/
 *.pdf
 docs/
 
-# Locally uploaded media (dev-only, until CDN delivery lands in Week 5)
-src/Campfire.Api/wwwroot/uploads/*
-!src/Campfire.Api/wwwroot/uploads/.gitkeep
+# Locally uploaded media (dev-only LocalMediaStorage fallback, served by MediaController)
+src/Campfire.Api/wwwroot/media/*
+!src/Campfire.Api/wwwroot/media/.gitkeep
 
 # dotenv files
 .env

@@ -30,17 +30,17 @@ export function NewContentPage() {
 
     setSubmitting(true)
     try {
-      let mediaUrl: string | null = null
+      let mediaPath: string | null = null
       if (needsMedia && file) {
         const upload = await uploadMedia(file, token)
-        mediaUrl = upload.url
+        mediaPath = upload.storagePath
       }
 
       await createContent({
         type,
         title,
         body,
-        mediaUrl,
+        mediaPath,
         requiredTierId: null,
         publish: true,
       }, token)

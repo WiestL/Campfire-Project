@@ -7,7 +7,7 @@ public record CreateContentRequest(
     [Required] ContentType Type,
     [Required, MaxLength(200)] string Title,
     [Required] string Body,
-    string? MediaUrl,
+    string? MediaPath,
     Guid? RequiredTierId,
     bool Publish
 );
@@ -25,4 +25,4 @@ public record ContentResponse(
     DateTime? PublishedAt
 );
 
-public record UploadResponse(string Url, string FileName, long SizeBytes);
+public record UploadResponse(string StoragePath, string FileName, long SizeBytes);

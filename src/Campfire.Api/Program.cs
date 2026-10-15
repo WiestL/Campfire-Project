@@ -2,6 +2,7 @@ using System.Text;
 using Campfire.Api.Data;
 using Campfire.Api.Options;
 using Campfire.Api.Services;
+using Campfire.Api.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -28,6 +29,17 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptio
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
 builder.Services.Configure<AdminSeedOptions>(builder.Configuration.GetSection(AdminSeedOptions.SectionName));
+
+builder.Services.Configure<CdnOptions>(builder.Configuration.GetSection(CdnOptions.SectionName));
+builder.Services.AddHttpClient<BunnyMediaStorage>();
+builder.Services.AddScoped<LocalMediaStorage>();
+builder.Services.AddScoped<IMediaStorage>(sp =>
+{
+    var cdnOptions = sp.GetRequiredService<IOptions<CdnOptions>>().Value;
+    return string.Equals(cdnOptions.Provider, "Bunny", StringComparison.OrdinalIgnoreCase)
+        ? sp.GetRequiredService<BunnyMediaStorage>()
+        : sp.GetRequiredService<LocalMediaStorage>();
+});
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 
@@ -74,8 +86,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
 
+// No app.UseStaticFiles(): media under wwwroot/media is served only through
+// MediaController, which enforces the signed-URL check. Wiring the static
+// files middleware here would let anyone bypass that check entirely.
 app.UseAuthentication();
 app.UseAuthorization();
 

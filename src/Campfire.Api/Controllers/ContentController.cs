@@ -3,8 +3,8 @@ using Campfire.Api.Data;
 using Campfire.Api.Dtos;
 using Campfire.Api.Models;
 using Campfire.Api.Services;
+using Campfire.Api.Storage;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,9 +13,15 @@ namespace Campfire.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ContentController(CampfireDbContext db, IWebHostEnvironment env) : ControllerBase
+public class ContentController(CampfireDbContext db, IMediaStorage mediaStorage) : ControllerBase
 {
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
+    private ContentResponse ToResponse(Content content, string creatorDisplayName) =>
+        new(
+            content.Id, content.CreatorId, creatorDisplayName, content.Type, content.Title, content.Body,
+            content.MediaUrl is null ? null : mediaStorage.GetSignedUrl(content.MediaUrl),
+            content.RequiredTierId, content.CreatedAt, content.PublishedAt);
 
     [HttpGet]
     public async Task<ActionResult<List<ContentResponse>>> GetFeed()
@@ -24,21 +30,18 @@ public class ContentController(CampfireDbContext db, IWebHostEnvironment env) : 
             .Include(c => c.Creator)
             .Where(c => c.PublishedAt != null)
             .OrderByDescending(c => c.PublishedAt)
-            .Select(c => new ContentResponse(
-                c.Id, c.CreatorId, c.Creator.DisplayName, c.Type, c.Title, c.Body,
-                c.MediaUrl, c.RequiredTierId, c.CreatedAt, c.PublishedAt))
             .ToListAsync();
 
-        return Ok(content);
+        return Ok(content.Select(c => ToResponse(c, c.Creator.DisplayName)).ToList());
     }
 
     [HttpPost]
     [Authorize(Roles = "Creator")]
     public async Task<ActionResult<ContentResponse>> Create(CreateContentRequest request)
     {
-        if ((request.Type == ContentType.Video || request.Type == ContentType.Audio) && string.IsNullOrWhiteSpace(request.MediaUrl))
+        if ((request.Type == ContentType.Video || request.Type == ContentType.Audio) && string.IsNullOrWhiteSpace(request.MediaPath))
         {
-            return BadRequest("Video and audio content require a MediaUrl (upload the file first via /api/content/upload).");
+            return BadRequest("Video and audio content require a MediaPath (upload the file first via /api/content/upload).");
         }
 
         var creator = await db.Users.FindAsync(CurrentUserId);
@@ -54,7 +57,7 @@ public class ContentController(CampfireDbContext db, IWebHostEnvironment env) : 
             Type = request.Type,
             Title = request.Title.Trim(),
             Body = request.Body,
-            MediaUrl = request.MediaUrl,
+            MediaUrl = request.MediaPath,
             RequiredTierId = request.RequiredTierId,
             CreatedAt = DateTime.UtcNow,
             PublishedAt = request.Publish ? DateTime.UtcNow : null,
@@ -63,9 +66,7 @@ public class ContentController(CampfireDbContext db, IWebHostEnvironment env) : 
         db.Content.Add(content);
         await db.SaveChangesAsync();
 
-        return Ok(new ContentResponse(
-            content.Id, content.CreatorId, creator.DisplayName, content.Type, content.Title,
-            content.Body, content.MediaUrl, content.RequiredTierId, content.CreatedAt, content.PublishedAt));
+        return Ok(ToResponse(content, creator.DisplayName));
     }
 
     [HttpPost("upload")]
@@ -83,17 +84,9 @@ public class ContentController(CampfireDbContext db, IWebHostEnvironment env) : 
             return BadRequest(error);
         }
 
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var storedName = $"{Guid.NewGuid()}{extension}";
-        var uploadsDir = Path.Combine(env.WebRootPath, "uploads");
-        Directory.CreateDirectory(uploadsDir);
-        var filePath = Path.Combine(uploadsDir, storedName);
+        await using var stream = file.OpenReadStream();
+        var storagePath = await mediaStorage.UploadAsync(stream, file.FileName);
 
-        await using (var stream = System.IO.File.Create(filePath))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        return Ok(new UploadResponse($"/uploads/{storedName}", file.FileName, file.Length));
+        return Ok(new UploadResponse(storagePath, file.FileName, file.Length));
     }
 }
