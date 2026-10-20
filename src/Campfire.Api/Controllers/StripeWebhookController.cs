@@ -35,8 +35,16 @@ public class StripeWebhookController(
         Event stripeEvent;
         try
         {
+            // New Stripe accounts default to the latest API version, which can be
+            // newer than the one Stripe.net was compiled against; ConstructEvent
+            // throws on that mismatch by default. Found against a real account
+            // (2026-09-30.endive vs. the SDK's 2026-08-26.dahlia). Safe to relax
+            // here since this handler only reads Status and CurrentPeriodEnd,
+            // fields stable across adjacent API versions; Stripe's own exception
+            // message documents this flag as the supported workaround.
             stripeEvent = EventUtility.ConstructEvent(
-                json, Request.Headers["Stripe-Signature"], options.Value.WebhookSecret);
+                json, Request.Headers["Stripe-Signature"], options.Value.WebhookSecret,
+                throwOnApiVersionMismatch: false);
         }
         catch (Exception ex) when (ex is StripeException or NullReferenceException)
         {

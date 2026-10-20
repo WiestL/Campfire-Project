@@ -72,6 +72,11 @@ public class ContentController(CampfireDbContext db, IMediaStorage mediaStorage)
     [HttpPost("upload")]
     [Authorize(Roles = "Creator")]
     [RequestSizeLimit(500L * 1024 * 1024)]
+    // RequestSizeLimit only raises Kestrel's raw body cap; ASP.NET Core's multipart
+    // form reader enforces its own separate, lower default (128 MB) and rejects the
+    // request before the action even runs. Found via a real 144 MB upload failing
+    // immediately with "Multipart body length limit 134217728 exceeded."
+    [RequestFormLimits(MultipartBodyLengthLimit = 500L * 1024 * 1024)]
     public async Task<ActionResult<UploadResponse>> Upload(IFormFile file)
     {
         if (file.Length == 0)

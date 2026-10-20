@@ -9,8 +9,7 @@ namespace Campfire.Api.Payments;
 /// no longer exist in this API version. Period end now lives per subscription
 /// item (SubscriptionItem.CurrentPeriodEnd), and the PaymentIntent needed for
 /// 3D Secure confirmation is reached via Invoice.Payments[].Payment.PaymentIntent.
-/// Not yet exercised against a live Stripe account (no test keys configured);
-/// verify this specific expand path once real keys exist.
+/// Verified end-to-end against a real test-mode Stripe account.
 /// </summary>
 public class StripeSubscriptionService : IStripeSubscriptionService
 {
@@ -84,14 +83,31 @@ public class StripeSubscriptionService : IStripeSubscriptionService
             ],
             Metadata = new Dictionary<string, string> { ["tierName"] = tierName },
             PaymentBehavior = "default_incomplete",
-            Expand = ["latest_invoice.payments.data.payment.payment_intent"],
         }, cancellationToken: ct);
 
         var currentPeriodEnd = subscription.Items?.Data?.FirstOrDefault()?.CurrentPeriodEnd;
 
-        var paymentIntent = subscription.LatestInvoice?.Payments?.Data?
-            .FirstOrDefault()?.Payment?.PaymentIntent;
-        var clientSecretForAction = paymentIntent?.Status == "requires_action"
+        // Stripe caps Expand at 4 levels; latest_invoice.payments.data.payment.payment_intent
+        // is 5, so the invoice has to be fetched separately to reach the PaymentIntent.
+        // Found by running this against a real Stripe account, not from docs.
+        PaymentIntent? paymentIntent = null;
+        if (subscription.LatestInvoiceId is not null)
+        {
+            var invoiceService = new InvoiceService();
+            var invoice = await invoiceService.GetAsync(subscription.LatestInvoiceId, new InvoiceGetOptions
+            {
+                Expand = ["payments.data.payment.payment_intent"],
+            }, cancellationToken: ct);
+
+            paymentIntent = invoice.Payments?.Data?.FirstOrDefault()?.Payment?.PaymentIntent;
+        }
+
+        // payment_behavior=default_incomplete leaves the invoice's PaymentIntent in
+        // "requires_confirmation", not just "requires_action": the client always has
+        // to call confirmCardPayment, not only for 3D Secure. Confirmed against a real
+        // Stripe account; "requires_action"-only here would have silently never
+        // collected payment for the common case.
+        var clientSecretForAction = paymentIntent?.Status is "requires_action" or "requires_confirmation"
             ? paymentIntent.ClientSecret
             : null;
 
