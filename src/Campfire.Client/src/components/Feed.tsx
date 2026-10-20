@@ -36,13 +36,19 @@ export function Feed() {
     <div className="feed">
       {items.map((item) => (
         <article key={item.id} className="feed-item">
-          <div className="feed-item-header">
-            <span className="feed-badge">{item.type}</span>
+          {item.mediaUrl && (
+            <div className="feed-item-media">
+              <MediaPreview item={item} />
+            </div>
+          )}
+          <div className="feed-item-body">
             <h3>{item.title}</h3>
+            <p className="feed-meta">
+              {item.creatorDisplayName} · {new Date(item.publishedAt ?? item.createdAt).toLocaleDateString()}
+              {!item.mediaUrl && <> · {item.type}</>}
+            </p>
+            <p>{item.body}</p>
           </div>
-          <p className="feed-meta">{item.creatorDisplayName} · {new Date(item.publishedAt ?? item.createdAt).toLocaleDateString()}</p>
-          <p>{item.body}</p>
-          <MediaPreview item={item} />
         </article>
       ))}
     </div>

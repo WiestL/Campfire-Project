@@ -40,22 +40,25 @@ export function TierSelection() {
       {tiers.map((tier) => {
         const isCurrentTier = subscription?.tierId === tier.id && hasActiveSubscription
         return (
-          <article key={tier.id} className="dashboard-card">
-            <h2>{tier.name}</h2>
-            <p className="tier-price">${tier.price.toFixed(2)}/mo</p>
-            <p>{tier.description}</p>
-            {isCurrentTier ? (
-              <span className="feed-badge">Current plan</span>
-            ) : (
-              <button
-                type="button"
-                disabled={hasActiveSubscription}
-                title={hasActiveSubscription ? 'You already have an active subscription' : undefined}
-                onClick={() => setSubscribingTier(tier)}
-              >
-                Subscribe
-              </button>
-            )}
+          <article key={tier.id} className="tier-card">
+            <div className="tier-card-banner" />
+            <div className="tier-card-body">
+              <h2>{tier.name}</h2>
+              <p className="tier-price">${tier.price.toFixed(2)}/mo</p>
+              <p>{tier.description}</p>
+              {isCurrentTier ? (
+                <span className="feed-badge">Current plan</span>
+              ) : (
+                <button
+                  type="button"
+                  disabled={hasActiveSubscription}
+                  title={hasActiveSubscription ? 'You already have an active subscription' : undefined}
+                  onClick={() => setSubscribingTier(tier)}
+                >
+                  Subscribe
+                </button>
+              )}
+            </div>
           </article>
         )
       })}

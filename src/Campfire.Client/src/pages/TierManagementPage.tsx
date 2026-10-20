@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { createTier, deleteTier, getTiers, updateTier } from '../api/tiers'
 import { ApiRequestError } from '../api/client'
+import { NavBar } from '../components/NavBar'
 import type { Tier, TierRequest } from '../api/types'
 
 const emptyForm: TierRequest = { name: '', description: '', price: 0, level: 0 }
@@ -69,7 +70,9 @@ export function TierManagementPage() {
   }
 
   return (
-    <div className="dashboard">
+    <>
+      <NavBar />
+      <div className="dashboard">
       <header className="dashboard-header">
         <h1>Membership Tiers</h1>
       </header>
@@ -130,18 +133,22 @@ export function TierManagementPage() {
       ) : (
         <div className="tier-grid">
           {tiers.map((tier) => (
-            <article key={tier.id} className="dashboard-card">
-              <h2>{tier.name}</h2>
-              <p className="tier-price">${tier.price.toFixed(2)}/mo · Level {tier.level}</p>
-              <p>{tier.description}</p>
-              <div className="tier-card-actions">
-                <button type="button" onClick={() => startEdit(tier)}>Edit</button>
-                <button type="button" className="secondary" onClick={() => handleDelete(tier.id)}>Delete</button>
+            <article key={tier.id} className="tier-card">
+              <div className="tier-card-banner" />
+              <div className="tier-card-body">
+                <h2>{tier.name}</h2>
+                <p className="tier-price">${tier.price.toFixed(2)}/mo · Level {tier.level}</p>
+                <p>{tier.description}</p>
+                <div className="tier-card-actions">
+                  <button type="button" onClick={() => startEdit(tier)}>Edit</button>
+                  <button type="button" className="secondary" onClick={() => handleDelete(tier.id)}>Delete</button>
+                </div>
               </div>
             </article>
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }

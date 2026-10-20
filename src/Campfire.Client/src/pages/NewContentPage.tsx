@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { createContent, uploadMedia } from '../api/content'
 import { ApiRequestError } from '../api/client'
+import { NavBar } from '../components/NavBar'
 import type { ContentType } from '../api/types'
 
 const MEDIA_TYPES: ContentType[] = ['Video', 'Audio']
@@ -54,7 +55,9 @@ export function NewContentPage() {
   }
 
   return (
-    <div className="auth-page">
+    <>
+      <NavBar />
+      <div className="auth-page">
       <form className="auth-form wide" onSubmit={handleSubmit}>
         <h1>New post</h1>
         {error && <p className="auth-error">{error}</p>}
@@ -89,6 +92,7 @@ export function NewContentPage() {
           {submitting ? 'Publishing…' : 'Publish'}
         </button>
       </form>
-    </div>
+      </div>
+    </>
   )
 }
