@@ -8,6 +8,7 @@ public class User
     public string DisplayName { get; set; } = string.Empty;
     public UserRole Role { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? StripeCustomerId { get; set; }
 
     public ICollection<Content> Content { get; set; } = new List<Content>();
     public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();

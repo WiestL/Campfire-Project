@@ -64,6 +64,23 @@ export interface TierRequest {
   level: number
 }
 
+export type SubscriptionStatus = 'Active' | 'PastDue' | 'Canceled' | 'Expired' | 'Incomplete'
+
+export interface SubscriptionInfo {
+  id: string
+  tierId: string
+  tierName: string
+  status: SubscriptionStatus
+  startedAt: string
+  currentPeriodEnd: string | null
+  clientSecretForAction: string | null
+}
+
+export interface SetupIntentInfo {
+  clientSecret: string
+  publishableKey: string
+}
+
 export interface ApiError {
   message: string
 }

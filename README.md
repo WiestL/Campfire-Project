@@ -4,9 +4,9 @@ Self-hosted creator membership platform (personal Patreon alternative).
 
 ## Structure
 
-- `src/Campfire.Api` — ASP.NET Core Web API (EF Core + PostgreSQL, Stripe.NET)
-- `src/Campfire.Client` — React + Vite + TypeScript frontend
-- `docker-compose.yml` — local PostgreSQL instance
+- `src/Campfire.Api`: ASP.NET Core Web API (EF Core + PostgreSQL, Stripe.NET)
+- `src/Campfire.Client`: React + Vite + TypeScript frontend
+- `docker-compose.yml`: local PostgreSQL instance
 
 ## Prerequisites
 
@@ -42,13 +42,26 @@ dotnet user-secrets set "Stripe:PublishableKey" "pk_test_..."
 dotnet user-secrets set "Stripe:WebhookSecret" "whsec_..."
 ```
 
+Unlike media storage, there is no local fallback for payments: subscription
+checkout (`POST /api/subscriptions/setup-intent`, `POST /api/subscriptions`) and
+the webhook handler (`POST /api/stripe/webhook`) need real Stripe test-mode keys
+to function at all. Without them, those endpoints return a clean `502` rather
+than crashing, but nothing will actually process. To receive webhooks locally,
+forward them with the [Stripe CLI](https://stripe.com/docs/stripe-cli):
+
+```bash
+stripe listen --forward-to https://localhost:7058/api/stripe/webhook
+```
+
+That command prints a webhook signing secret to use for `Stripe:WebhookSecret`.
+
 ## Admin account
 
 Admin accounts can't be created via `/api/auth/register` (only `Creator`/`Member`
 can self-register). Instead, the API seeds a single Admin on startup from the
 `AdminSeed` config section, if one doesn't already exist. In dev,
 `appsettings.Development.json` ships with a default (`admin@campfire.local` /
-`dev-only-admin-password-change-me`) — change it for anything beyond local dev:
+`dev-only-admin-password-change-me`); change it for anything beyond local dev:
 
 ```bash
 cd src/Campfire.Api
@@ -60,10 +73,10 @@ dotnet user-secrets set "AdminSeed:Password" "a-real-password"
 
 Video/audio uploads go through `IMediaStorage`, with two implementations:
 
-- **Local** (default) — saves to `wwwroot/media` and serves it back through
+- **Local** (default): saves to `wwwroot/media` and serves it back through
   `MediaController`, which validates a signed, time-limited URL using the same
   token-auth scheme Bunny.net uses. No external account needed for local dev.
-- **Bunny** — uploads to a Bunny.net Storage Zone and signs Pull Zone URLs for
+- **Bunny**: uploads to a Bunny.net Storage Zone and signs Pull Zone URLs for
   playback. Enable it once you have a Bunny.net account:
 
 ```bash

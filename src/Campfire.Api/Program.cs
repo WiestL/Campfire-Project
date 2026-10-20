@@ -1,6 +1,7 @@
 using System.Text;
 using Campfire.Api.Data;
 using Campfire.Api.Options;
+using Campfire.Api.Payments;
 using Campfire.Api.Services;
 using Campfire.Api.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,6 +25,7 @@ builder.Services.AddDbContext<CampfireDbContext>(options =>
 
 builder.Services.Configure<StripeOptions>(builder.Configuration.GetSection(StripeOptions.SectionName));
 StripeConfiguration.ApiKey = builder.Configuration[$"{StripeOptions.SectionName}:SecretKey"];
+builder.Services.AddScoped<IStripeSubscriptionService, StripeSubscriptionService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
