@@ -25,9 +25,11 @@ export interface ContentItem {
   creatorDisplayName: string
   type: ContentType
   title: string
-  body: string
+  body: string | null
   mediaUrl: string | null
   requiredTierId: string | null
+  requiredTierName: string | null
+  isLocked: boolean
   createdAt: string
   publishedAt: string | null
 }

@@ -46,14 +46,14 @@ public class ContentControllerTests
         return new CampfireDbContext(options);
     }
 
-    private static async Task<User> AddCreatorAsync(CampfireDbContext db)
+    private static async Task<User> AddCreatorAsync(CampfireDbContext db, string email = "creator@example.com", string displayName = "Test Creator")
     {
         var creator = new User
         {
             Id = Guid.NewGuid(),
-            Email = "creator@example.com",
+            Email = email,
             PasswordHash = "hash",
-            DisplayName = "Test Creator",
+            DisplayName = displayName,
             Role = UserRole.Creator,
         };
         db.Users.Add(creator);
@@ -61,7 +61,51 @@ public class ContentControllerTests
         return creator;
     }
 
-    private ContentController CreateController(CampfireDbContext db, Guid actingUserId)
+    private static async Task<User> AddMemberAsync(CampfireDbContext db, string email = "member@example.com")
+    {
+        var member = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            PasswordHash = "hash",
+            DisplayName = "Test Member",
+            Role = UserRole.Member,
+        };
+        db.Users.Add(member);
+        await db.SaveChangesAsync();
+        return member;
+    }
+
+    private static async Task<MembershipTier> AddTierAsync(CampfireDbContext db, Guid creatorId, int level, string name = "Tier")
+    {
+        var tier = new MembershipTier
+        {
+            Id = Guid.NewGuid(),
+            CreatorId = creatorId,
+            Name = name,
+            Description = "desc",
+            Price = 5,
+            Level = level,
+        };
+        db.MembershipTiers.Add(tier);
+        await db.SaveChangesAsync();
+        return tier;
+    }
+
+    private static async Task AddActiveSubscriptionAsync(CampfireDbContext db, Guid memberId, Guid tierId)
+    {
+        db.Subscriptions.Add(new Subscription
+        {
+            Id = Guid.NewGuid(),
+            MemberId = memberId,
+            TierId = tierId,
+            Status = SubscriptionStatus.Active,
+            StartedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private ContentController CreateController(CampfireDbContext db, Guid actingUserId, UserRole role = UserRole.Creator)
     {
         var env = new Mock<IWebHostEnvironment>();
         env.Setup(e => e.WebRootPath).Returns(_mediaRoot);
@@ -69,7 +113,10 @@ public class ContentControllerTests
         var httpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, actingUserId.ToString())], "test")),
+                [
+                    new Claim(ClaimTypes.NameIdentifier, actingUserId.ToString()),
+                    new Claim(ClaimTypes.Role, role.ToString()),
+                ], "test")),
         };
 
         var cdnOptions = Microsoft.Extensions.Options.Options.Create(new CdnOptions
@@ -237,5 +284,202 @@ public class ContentControllerTests
 
         var savedPath = Path.Combine(_mediaRoot, "media", response.StoragePath);
         Assert.That(File.Exists(savedPath), Is.True);
+    }
+
+    [Test]
+    public async Task Create_RequiredTierBelongingToAnotherCreator_IsRejected()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var otherCreator = await AddCreatorAsync(db, "other@example.com", "Other Creator");
+        var otherTier = await AddTierAsync(db, otherCreator.Id, level: 0);
+        var controller = CreateController(db, creator.Id);
+
+        var result = await controller.Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Body", null, otherTier.Id, Publish: true));
+
+        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
+        Assert.That(db.Content, Is.Empty);
+    }
+
+    [Test]
+    public async Task Create_RequiredTierBelongingToSelf_Succeeds()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var tier = await AddTierAsync(db, creator.Id, level: 1, name: "Gold");
+        var controller = CreateController(db, creator.Id);
+
+        var result = await controller.Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Body", null, tier.Id, Publish: true));
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var response = (ContentResponse)((OkObjectResult)result.Result!).Value!;
+        Assert.That(response.RequiredTierName, Is.EqualTo("Gold"));
+        Assert.That(response.IsLocked, Is.False);
+    }
+
+    [Test]
+    public async Task GetFeed_PublicContent_IsVisibleToEveryone()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var member = await AddMemberAsync(db);
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Public post", "Body", null, null, Publish: true));
+
+        var feed = await GetFeedAsync(db, member.Id, UserRole.Member);
+
+        Assert.That(feed![0].IsLocked, Is.False);
+        Assert.That(feed[0].Body, Is.EqualTo("Body"));
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_OwningCreatorAlwaysSeesIt()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var tier = await AddTierAsync(db, creator.Id, level: 1);
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, tier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, creator.Id, UserRole.Creator);
+
+        Assert.That(feed![0].IsLocked, Is.False);
+        Assert.That(feed[0].Body, Is.EqualTo("Secret body"));
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_AdminAlwaysSeesIt()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var tier = await AddTierAsync(db, creator.Id, level: 1);
+        var admin = await AddMemberAsync(db, "admin@example.com");
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, tier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, admin.Id, UserRole.Admin);
+
+        Assert.That(feed![0].IsLocked, Is.False);
+        Assert.That(feed[0].Body, Is.EqualTo("Secret body"));
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_MemberWithNoSubscription_IsLocked()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var tier = await AddTierAsync(db, creator.Id, level: 1, name: "Gold");
+        var member = await AddMemberAsync(db);
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, tier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, member.Id, UserRole.Member);
+
+        Assert.That(feed![0].IsLocked, Is.True);
+        Assert.That(feed[0].Body, Is.Null);
+        Assert.That(feed[0].MediaUrl, Is.Null);
+        Assert.That(feed[0].RequiredTierName, Is.EqualTo("Gold"));
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_MemberWithMatchingTierSubscription_IsUnlocked()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var tier = await AddTierAsync(db, creator.Id, level: 1);
+        var member = await AddMemberAsync(db);
+        await AddActiveSubscriptionAsync(db, member.Id, tier.Id);
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, tier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, member.Id, UserRole.Member);
+
+        Assert.That(feed![0].IsLocked, Is.False);
+        Assert.That(feed[0].Body, Is.EqualTo("Secret body"));
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_MemberWithHigherTierSubscription_IsUnlocked()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var lowTier = await AddTierAsync(db, creator.Id, level: 0, name: "Silver");
+        var highTier = await AddTierAsync(db, creator.Id, level: 2, name: "Platinum");
+        var member = await AddMemberAsync(db);
+        await AddActiveSubscriptionAsync(db, member.Id, highTier.Id);
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, lowTier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, member.Id, UserRole.Member);
+
+        Assert.That(feed![0].IsLocked, Is.False);
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_MemberWithLowerTierSubscription_IsLocked()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var lowTier = await AddTierAsync(db, creator.Id, level: 0, name: "Silver");
+        var highTier = await AddTierAsync(db, creator.Id, level: 2, name: "Platinum");
+        var member = await AddMemberAsync(db);
+        await AddActiveSubscriptionAsync(db, member.Id, lowTier.Id);
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, highTier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, member.Id, UserRole.Member);
+
+        Assert.That(feed![0].IsLocked, Is.True);
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_SubscriptionToDifferentCreator_IsLocked()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var otherCreator = await AddCreatorAsync(db, "other@example.com", "Other Creator");
+        var tier = await AddTierAsync(db, creator.Id, level: 0);
+        var otherTier = await AddTierAsync(db, otherCreator.Id, level: 5);
+        var member = await AddMemberAsync(db);
+        await AddActiveSubscriptionAsync(db, member.Id, otherTier.Id);
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, tier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, member.Id, UserRole.Member);
+
+        Assert.That(feed![0].IsLocked, Is.True);
+    }
+
+    [Test]
+    public async Task GetFeed_GatedContent_CanceledSubscription_IsLocked()
+    {
+        await using var db = CreateDb();
+        var creator = await AddCreatorAsync(db);
+        var tier = await AddTierAsync(db, creator.Id, level: 0);
+        var member = await AddMemberAsync(db);
+        db.Subscriptions.Add(new Subscription
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            TierId = tier.Id,
+            Status = SubscriptionStatus.Canceled,
+            StartedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+        await CreateController(db, creator.Id).Create(new CreateContentRequest(
+            ContentType.Text, "Gated post", "Secret body", null, tier.Id, Publish: true));
+
+        var feed = await GetFeedAsync(db, member.Id, UserRole.Member);
+
+        Assert.That(feed![0].IsLocked, Is.True);
+    }
+
+    private async Task<List<ContentResponse>?> GetFeedAsync(CampfireDbContext db, Guid viewerId, UserRole role)
+    {
+        var controller = CreateController(db, viewerId, role);
+        var result = await controller.GetFeed();
+        return ((OkObjectResult)result.Result!).Value as List<ContentResponse>;
     }
 }

@@ -1,24 +1,34 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { createContent, uploadMedia } from '../api/content'
+import { getTiers } from '../api/tiers'
 import { ApiRequestError } from '../api/client'
 import { NavBar } from '../components/NavBar'
-import type { ContentType } from '../api/types'
+import type { ContentType, Tier } from '../api/types'
 
 const MEDIA_TYPES: ContentType[] = ['Video', 'Audio']
 
 export function NewContentPage() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const navigate = useNavigate()
   const [type, setType] = useState<ContentType>('Text')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [tiers, setTiers] = useState<Tier[]>([])
+  const [requiredTierId, setRequiredTierId] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const needsMedia = MEDIA_TYPES.includes(type)
+
+  useEffect(() => {
+    getTiers(token)
+      .then((all) => setTiers(all.filter((t) => t.creatorId === user?.userId).sort((a, b) => a.level - b.level)))
+      .catch(() => setTiers([]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -42,7 +52,7 @@ export function NewContentPage() {
         title,
         body,
         mediaPath,
-        requiredTierId: null,
+        requiredTierId: requiredTierId || null,
         publish: true,
       }, token)
 
@@ -88,6 +98,17 @@ export function NewContentPage() {
             />
           </label>
         )}
+        <label>
+          Visibility
+          <select value={requiredTierId} onChange={(e) => setRequiredTierId(e.target.value)}>
+            <option value="">Public (everyone)</option>
+            {tiers.map((tier) => (
+              <option key={tier.id} value={tier.id}>
+                {tier.name} and above
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit" disabled={submitting}>
           {submitting ? 'Publishing…' : 'Publish'}
         </button>

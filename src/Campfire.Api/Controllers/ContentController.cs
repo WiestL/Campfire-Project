@@ -17,22 +17,49 @@ public class ContentController(CampfireDbContext db, IMediaStorage mediaStorage)
 {
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
 
-    private ContentResponse ToResponse(Content content, string creatorDisplayName) =>
+    private ContentResponse ToResponse(Content content, string creatorDisplayName, bool hasAccess) =>
         new(
-            content.Id, content.CreatorId, creatorDisplayName, content.Type, content.Title, content.Body,
-            content.MediaUrl is null ? null : mediaStorage.GetSignedUrl(content.MediaUrl),
-            content.RequiredTierId, content.CreatedAt, content.PublishedAt);
+            content.Id, content.CreatorId, creatorDisplayName, content.Type, content.Title,
+            hasAccess ? content.Body : null,
+            hasAccess && content.MediaUrl is not null ? mediaStorage.GetSignedUrl(content.MediaUrl) : null,
+            content.RequiredTierId, content.RequiredTier?.Name, !hasAccess,
+            content.CreatedAt, content.PublishedAt);
 
     [HttpGet]
     public async Task<ActionResult<List<ContentResponse>>> GetFeed()
     {
         var content = await db.Content
             .Include(c => c.Creator)
+            .Include(c => c.RequiredTier)
             .Where(c => c.PublishedAt != null)
             .OrderByDescending(c => c.PublishedAt)
             .ToListAsync();
 
-        return Ok(content.Select(c => ToResponse(c, c.Creator.DisplayName)).ToList());
+        var viewerId = CurrentUserId;
+        var isAdmin = User.IsInRole("Admin");
+
+        // Active subscriptions grant access to every tier at or below the level
+        // subscribed to, scoped per creator; a member can have at most one active
+        // subscription (enforced in SubscriptionsController.Create), but this stays
+        // correct even if that ever changes.
+        var accessByCreator = isAdmin
+            ? new Dictionary<Guid, int>()
+            : await db.Subscriptions
+                .Where(s => s.MemberId == viewerId && s.Status == SubscriptionStatus.Active)
+                .Include(s => s.Tier)
+                .GroupBy(s => s.Tier.CreatorId)
+                .Select(g => new { CreatorId = g.Key, MaxLevel = g.Max(s => s.Tier.Level) })
+                .ToDictionaryAsync(x => x.CreatorId, x => x.MaxLevel);
+
+        bool HasAccess(Content c)
+        {
+            if (c.RequiredTierId is null) return true;
+            if (isAdmin) return true;
+            if (c.CreatorId == viewerId) return true;
+            return accessByCreator.TryGetValue(c.CreatorId, out var level) && level >= c.RequiredTier!.Level;
+        }
+
+        return Ok(content.Select(c => ToResponse(c, c.Creator.DisplayName, HasAccess(c))).ToList());
     }
 
     [HttpPost]
@@ -50,6 +77,16 @@ public class ContentController(CampfireDbContext db, IMediaStorage mediaStorage)
             return Unauthorized();
         }
 
+        MembershipTier? requiredTier = null;
+        if (request.RequiredTierId is not null)
+        {
+            requiredTier = await db.MembershipTiers.FindAsync(request.RequiredTierId);
+            if (requiredTier is null || requiredTier.CreatorId != creator.Id)
+            {
+                return BadRequest("RequiredTierId must be one of your own membership tiers.");
+            }
+        }
+
         var content = new Content
         {
             Id = Guid.NewGuid(),
@@ -59,6 +96,7 @@ public class ContentController(CampfireDbContext db, IMediaStorage mediaStorage)
             Body = request.Body,
             MediaUrl = request.MediaPath,
             RequiredTierId = request.RequiredTierId,
+            RequiredTier = requiredTier,
             CreatedAt = DateTime.UtcNow,
             PublishedAt = request.Publish ? DateTime.UtcNow : null,
         };
@@ -66,7 +104,7 @@ public class ContentController(CampfireDbContext db, IMediaStorage mediaStorage)
         db.Content.Add(content);
         await db.SaveChangesAsync();
 
-        return Ok(ToResponse(content, creator.DisplayName));
+        return Ok(ToResponse(content, creator.DisplayName, hasAccess: true));
     }
 
     [HttpPost("upload")]

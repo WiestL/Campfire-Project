@@ -35,19 +35,26 @@ export function Feed() {
   return (
     <div className="feed">
       {items.map((item) => (
-        <article key={item.id} className="feed-item">
-          {item.mediaUrl && (
-            <div className="feed-item-media">
-              <MediaPreview item={item} />
+        <article key={item.id} className={item.isLocked ? 'feed-item feed-item-locked' : 'feed-item'}>
+          {item.isLocked ? (
+            <div className="feed-locked-teaser">
+              <span className="feed-lock-badge">Locked</span>
+              <span>Subscribe to {item.requiredTierName ?? 'a paid tier'} to unlock</span>
             </div>
+          ) : (
+            item.mediaUrl && (
+              <div className="feed-item-media">
+                <MediaPreview item={item} />
+              </div>
+            )
           )}
           <div className="feed-item-body">
             <h3>{item.title}</h3>
             <p className="feed-meta">
               {item.creatorDisplayName} · {new Date(item.publishedAt ?? item.createdAt).toLocaleDateString()}
-              {!item.mediaUrl && <> · {item.type}</>}
+              {!item.mediaUrl && !item.isLocked && <> · {item.type}</>}
             </p>
-            <p>{item.body}</p>
+            {!item.isLocked && <p>{item.body}</p>}
           </div>
         </article>
       ))}

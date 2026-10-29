@@ -18,9 +18,11 @@ public record ContentResponse(
     string CreatorDisplayName,
     ContentType Type,
     string Title,
-    string Body,
+    string? Body,
     string? MediaUrl,
     Guid? RequiredTierId,
+    string? RequiredTierName,
+    bool IsLocked,
     DateTime CreatedAt,
     DateTime? PublishedAt
 );
