@@ -90,3 +90,70 @@ dotnet user-secrets set "Cdn:SigningKey" "your-pull-zone-token-auth-key"
 
 Signed URLs default to a 1-hour expiry (`Cdn:UrlExpirySeconds`), generated fresh
 on every `/api/content` response rather than stored statically.
+
+## Testing
+
+Four levels, per the project's V&V Plan (`docs/vv/`, not committed; see the
+term project submission). Status and current metrics: `tests/Week11-ProgressCheck.md`.
+
+### Unit tests
+
+No external dependencies; uses EF Core InMemory and mocked Stripe/CDN calls.
+
+```bash
+dotnet test src/Campfire.Api.Tests -- NUnit.Where="cat == 'Unit Tests'"
+```
+
+### Integration tests
+
+Needs the real Postgres container running (`docker compose up -d`) and, for
+the Bunny/Stripe cases, real sandbox credentials already set via
+`dotnet user-secrets` as described above. Each fixture skips gracefully
+(not fails) when its dependency isn't reachable, so a partial setup still
+runs whatever it can:
+
+```bash
+docker compose up -d
+dotnet test src/Campfire.Api.Tests -- NUnit.Where="cat == 'Integration Tests'"
+```
+
+Run everything (Unit + Integration) with plain `dotnet test src/Campfire.Api.Tests`.
+
+> `--filter TestCategory=...` (VSTest's own filter syntax) can't parse a
+> category name containing a space, which is why these use NUnit's own
+> `NUnit.Where` instead.
+
+### System tests
+
+Playwright against the live stack: start Postgres, the API
+(`dotnet run --project src/Campfire.Api`), and the frontend
+(`npm run dev` in `src/Campfire.Client`) first. The subscription-checkout
+spec also needs the Stripe CLI forwarding webhooks:
+
+```bash
+stripe listen --forward-to https://localhost:7058/api/stripe/webhook
+```
+
+Then, from `tests/system/`:
+
+```bash
+cd tests/system
+npm install
+npx playwright install chromium
+npx playwright test
+```
+
+### Acceptance tests
+
+Draft criteria, derived per-persona from the project's requirements, in
+`tests/acceptance/AcceptanceTestCases.md`. Several are already exercised by
+the System suite above; the rest are intended as manual walkthroughs.
+
+### Code coverage
+
+```bash
+dotnet test src/Campfire.Api.Tests --collect:"XPlat Code Coverage"
+reportgenerator -reports:"src/Campfire.Api.Tests/TestResults/*/coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:"Html;TextSummary"
+```
+
+(`reportgenerator`: `dotnet tool install -g dotnet-reportgenerator-globaltool`.)

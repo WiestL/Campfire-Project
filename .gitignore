@@ -169,6 +169,12 @@ _TeamCity*
 coverage*.json
 coverage*.xml
 coverage*.info
+coverage-report*/
+
+# Playwright system test output
+tests/system/node_modules/
+tests/system/test-results/
+tests/system/playwright-report/
 
 # Visual Studio code coverage results
 *.coverage

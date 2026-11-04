@@ -25,7 +25,10 @@ jobs:
         run: dotnet build Campfire.sln --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test src/Campfire.Api.Tests/Campfire.Api.Tests.csproj --no-build --configuration Release --verbosity normal
+        # Integration tests need a real Postgres/Bunny/Stripe sandbox, none of
+        # which CI has; NUnit.Where (not VSTest's --filter, whose parser can't
+        # handle a space inside the category name) keeps this run to Unit only.
+        run: dotnet test src/Campfire.Api.Tests/Campfire.Api.Tests.csproj --no-build --configuration Release --verbosity normal -- NUnit.Where="cat == 'Unit Tests'"
 
   client:
     name: Build client

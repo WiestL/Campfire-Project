@@ -96,6 +96,19 @@ export function SubscribeModal({ tier, onClose, onSubscribed }: SubscribeModalPr
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // React StrictMode double-invokes this effect in dev, firing two real
+    // setup-intent requests; each used to be able to create its own Stripe
+    // customer for the same user before either one committed, so whichever
+    // commit "lost" left the DB pointing at a different customer than the one
+    // the user's SetupIntent actually confirmed against. Fixed server-side
+    // (EnsureStripeCustomerAsync in SubscriptionsController), which serializes
+    // customer creation per user, so both calls here now safely resolve to the
+    // same customer and the same guard pattern (not skipping the second
+    // invocation) stays correct. An earlier attempt to skip the second
+    // invocation client-side instead broke this: StrictMode's cleanup still
+    // marks the first invocation's closure "cancelled" before it resolves, so
+    // if nothing fires a second request to replace it, setSetupInfo never
+    // runs and the modal hangs on "Loading checkout..." forever.
     let cancelled = false
     createSetupIntent(token)
       .then((info) => { if (!cancelled) setSetupInfo({ clientSecret: info.clientSecret, publishableKey: info.publishableKey }) })

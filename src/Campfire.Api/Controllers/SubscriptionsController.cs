@@ -21,7 +21,47 @@ public class SubscriptionsController(
     IOptions<StripeOptions> stripeOptions,
     ILogger<SubscriptionsController> logger) : ControllerBase
 {
+    // Guards "does this user have a Stripe customer yet" so concurrent requests
+    // for the same user (e.g. React StrictMode double-invoking an effect, a
+    // double-click, a retry) can't both see StripeCustomerId as null and each
+    // create a separate Stripe customer; only the last SaveChangesAsync would
+    // "win" in the DB, leaving whichever SetupIntent the user actually
+    // confirmed pointed at a customer the DB no longer agrees is theirs. Found
+    // via the Playwright system test suite exercising checkout concurrently,
+    // which surfaced it as "payment method already attached to a customer"
+    // several requests later, in StripeSubscriptionService.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> CustomerLocks = new();
+
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
+    private async Task<string> EnsureStripeCustomerAsync(User user)
+    {
+        if (user.StripeCustomerId is not null)
+        {
+            return user.StripeCustomerId;
+        }
+
+        var userLock = CustomerLocks.GetOrAdd(user.Id, _ => new SemaphoreSlim(1, 1));
+        await userLock.WaitAsync();
+        try
+        {
+            // re-check after acquiring the lock: another request for this same
+            // user may have just finished creating the customer while we waited
+            await db.Entry(user).ReloadAsync();
+            if (user.StripeCustomerId is not null)
+            {
+                return user.StripeCustomerId;
+            }
+
+            user.StripeCustomerId = await stripe.CreateCustomerAsync(user.Email, user.DisplayName);
+            await db.SaveChangesAsync();
+            return user.StripeCustomerId;
+        }
+        finally
+        {
+            userLock.Release();
+        }
+    }
 
     private static SubscriptionResponse ToResponse(Subscription s, string tierName, string? clientSecretForAction = null) =>
         new(s.Id, s.TierId, tierName, s.Status, s.StartedAt, s.CurrentPeriodEnd, clientSecretForAction);
@@ -71,13 +111,8 @@ public class SubscriptionsController(
 
         try
         {
-            if (user.StripeCustomerId is null)
-            {
-                user.StripeCustomerId = await stripe.CreateCustomerAsync(user.Email, user.DisplayName);
-                await db.SaveChangesAsync();
-            }
-
-            var clientSecret = await stripe.CreateSetupIntentAsync(user.StripeCustomerId);
+            var customerId = await EnsureStripeCustomerAsync(user);
+            var clientSecret = await stripe.CreateSetupIntentAsync(customerId);
 
             return Ok(new SetupIntentResponse(clientSecret, stripeOptions.Value.PublishableKey));
         }
@@ -111,14 +146,9 @@ public class SubscriptionsController(
 
         try
         {
-            if (user.StripeCustomerId is null)
-            {
-                user.StripeCustomerId = await stripe.CreateCustomerAsync(user.Email, user.DisplayName);
-                await db.SaveChangesAsync();
-            }
-
+            var customerId = await EnsureStripeCustomerAsync(user);
             var result = await stripe.CreateSubscriptionAsync(
-                user.StripeCustomerId, request.PaymentMethodId, tier.Name, tier.Price);
+                customerId, request.PaymentMethodId, tier.Name, tier.Price);
 
             var subscription = new Subscription
             {
@@ -127,7 +157,7 @@ public class SubscriptionsController(
                 TierId = tier.Id,
                 Status = MapStripeStatus(result.RawStatus),
                 StripeSubscriptionId = result.StripeSubscriptionId,
-                StripeCustomerId = user.StripeCustomerId,
+                StripeCustomerId = customerId,
                 StartedAt = DateTime.UtcNow,
                 CurrentPeriodEnd = result.CurrentPeriodEnd,
             };
