@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { AnalyticsPanel } from '../components/AnalyticsPanel'
 import { Feed } from '../components/Feed'
 import { NavBar } from '../components/NavBar'
 
@@ -26,12 +27,10 @@ export function CreatorDashboard() {
             <p>Define pricing and access levels.</p>
             <Link to="/tiers">Manage tiers</Link>
           </article>
-          <article className="dashboard-card">
-            <h2>Analytics</h2>
-            <p>Member count, revenue, engagement.</p>
-            <p className="placeholder">Coming in Week 9</p>
-          </article>
         </section>
+
+        <h2 className="feed-heading">Analytics</h2>
+        <AnalyticsPanel />
 
         <h2 className="feed-heading">Feed</h2>
         <Feed />

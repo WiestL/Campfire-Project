@@ -457,6 +457,75 @@
   margin: 0 0 4px;
 }
 
+/* Analytics */
+
+.analytics-panel {
+  margin-top: 16px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-h);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--tan);
+  font-weight: 600;
+}
+
+.stat-table {
+  margin-top: 16px;
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.stat-table th,
+.stat-table td {
+  text-align: left;
+  padding: 12px 20px;
+  font-size: 14px;
+}
+
+.stat-table th {
+  color: var(--tan);
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-table td {
+  color: var(--text-h);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-table tr:last-child td {
+  border-bottom: none;
+}
+
 /* Modal */
 
 .modal-overlay {

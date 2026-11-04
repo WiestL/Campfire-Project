@@ -83,6 +83,19 @@ export interface SetupIntentInfo {
   publishableKey: string
 }
 
+export interface TierSubscriberCount {
+  tierId: string
+  tierName: string
+  activeSubscribers: number
+}
+
+export interface CreatorAnalytics {
+  totalActiveSubscribers: number
+  monthlyRecurringRevenue: number
+  publishedPostCount: number
+  subscribersByTier: TierSubscriberCount[]
+}
+
 export interface ApiError {
   message: string
 }
