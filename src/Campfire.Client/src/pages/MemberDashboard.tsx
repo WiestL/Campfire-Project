@@ -15,14 +15,6 @@ export function MemberDashboard() {
         </header>
         <p>Welcome back, {user?.displayName}.</p>
 
-        <section className="dashboard-grid">
-          <article className="dashboard-card">
-            <h2>Book Club</h2>
-            <p>Join reading discussions.</p>
-            <p className="placeholder">Coming in Week 8</p>
-          </article>
-        </section>
-
         <h2 className="feed-heading">Choose your membership</h2>
         <TierSelection />
 

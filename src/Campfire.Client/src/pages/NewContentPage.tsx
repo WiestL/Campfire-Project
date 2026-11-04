@@ -77,7 +77,6 @@ export function NewContentPage() {
             <option value="Text">Text</option>
             <option value="Video">Video</option>
             <option value="Audio">Audio</option>
-            <option value="BookClub">Book Club</option>
           </select>
         </label>
         <label>

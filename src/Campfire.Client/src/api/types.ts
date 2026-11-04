@@ -17,7 +17,7 @@ export interface CurrentUser {
   createdAt: string
 }
 
-export type ContentType = 'Text' | 'Video' | 'Audio' | 'BookClub'
+export type ContentType = 'Text' | 'Video' | 'Audio'
 
 export interface ContentItem {
   id: string

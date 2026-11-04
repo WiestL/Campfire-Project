@@ -4,6 +4,5 @@ public enum ContentType
 {
     Text,
     Video,
-    Audio,
-    BookClub
+    Audio
 }
