@@ -8,6 +8,10 @@ public record CreateSubscriptionRequest(
     [Required] string PaymentMethodId
 );
 
+public record ChangeTierRequest(
+    [Required] Guid NewTierId
+);
+
 public record SetupIntentResponse(string ClientSecret, string PublishableKey);
 
 public record SubscriptionResponse(

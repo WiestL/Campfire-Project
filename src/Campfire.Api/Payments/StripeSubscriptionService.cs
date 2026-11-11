@@ -124,6 +124,100 @@ public class StripeSubscriptionService : IStripeSubscriptionService
         await service.CancelAsync(stripeSubscriptionId, cancellationToken: ct);
     }
 
+    public async Task<StripeSubscriptionResult> ChangeSubscriptionTierAsync(
+        string stripeSubscriptionId, string newTierName, decimal newMonthlyPriceUsd, CancellationToken ct = default)
+    {
+        var subscriptionService = new SubscriptionService();
+        var existing = await subscriptionService.GetAsync(stripeSubscriptionId, cancellationToken: ct);
+        var itemId = existing.Items.Data[0].Id;
+        var productId = await EnsureMembershipProductAsync(ct);
+
+        var updated = await subscriptionService.UpdateAsync(stripeSubscriptionId, new SubscriptionUpdateOptions
+        {
+            Items =
+            [
+                new SubscriptionItemOptions
+                {
+                    Id = itemId,
+                    PriceData = new SubscriptionItemPriceDataOptions
+                    {
+                        Currency = "usd",
+                        Product = productId,
+                        UnitAmount = (long)Math.Round(newMonthlyPriceUsd * 100m, MidpointRounding.AwayFromZero),
+                        Recurring = new SubscriptionItemPriceDataRecurringOptions
+                        {
+                            Interval = "month",
+                        },
+                    },
+                },
+            ],
+            // Stripe's default; explicit so a future Stripe default change can't
+            // silently alter billing behavior for a tier switch.
+            ProrationBehavior = "create_prorations",
+            Metadata = new Dictionary<string, string> { ["tierName"] = newTierName },
+        }, cancellationToken: ct);
+
+        var currentPeriodEnd = updated.Items?.Data?.FirstOrDefault()?.CurrentPeriodEnd;
+        return new StripeSubscriptionResult(updated.Id, updated.Status, currentPeriodEnd, null);
+    }
+
+    public async Task<PaymentMethodSummary?> GetDefaultPaymentMethodAsync(string customerId, CancellationToken ct = default)
+    {
+        var customerService = new CustomerService();
+        var customer = await customerService.GetAsync(customerId, new CustomerGetOptions
+        {
+            Expand = ["invoice_settings.default_payment_method"],
+        }, cancellationToken: ct);
+
+        var paymentMethod = customer.InvoiceSettings?.DefaultPaymentMethod;
+        if (paymentMethod?.Card is null)
+        {
+            return null;
+        }
+
+        return new PaymentMethodSummary(
+            paymentMethod.Id, paymentMethod.Card.Brand, paymentMethod.Card.Last4,
+            paymentMethod.Card.ExpMonth, paymentMethod.Card.ExpYear);
+    }
+
+    public async Task SetDefaultPaymentMethodAsync(string customerId, string paymentMethodId, CancellationToken ct = default)
+    {
+        var existing = await GetDefaultPaymentMethodAsync(customerId, ct);
+
+        var paymentMethodService = new PaymentMethodService();
+        await paymentMethodService.AttachAsync(paymentMethodId, new PaymentMethodAttachOptions
+        {
+            Customer = customerId,
+        }, cancellationToken: ct);
+
+        var customerService = new CustomerService();
+        await customerService.UpdateAsync(customerId, new CustomerUpdateOptions
+        {
+            InvoiceSettings = new CustomerInvoiceSettingsOptions
+            {
+                DefaultPaymentMethod = paymentMethodId,
+            },
+        }, cancellationToken: ct);
+
+        // tidy up rather than letting superseded cards accumulate silently attached
+        if (existing is not null && existing.Id != paymentMethodId)
+        {
+            await paymentMethodService.DetachAsync(existing.Id, cancellationToken: ct);
+        }
+    }
+
+    public async Task RemoveDefaultPaymentMethodAsync(string customerId, CancellationToken ct = default)
+    {
+        var existing = await GetDefaultPaymentMethodAsync(customerId, ct);
+        if (existing is null)
+        {
+            return;
+        }
+
+        var paymentMethodService = new PaymentMethodService();
+        await paymentMethodService.DetachAsync(existing.Id, cancellationToken: ct);
+    }
+
     /// <summary>
     /// Every membership tier shares one Stripe Product (price varies per
     /// subscription via price_data); Stripe requires an existing Product id for

@@ -21,47 +21,7 @@ public class SubscriptionsController(
     IOptions<StripeOptions> stripeOptions,
     ILogger<SubscriptionsController> logger) : ControllerBase
 {
-    // Guards "does this user have a Stripe customer yet" so concurrent requests
-    // for the same user (e.g. React StrictMode double-invoking an effect, a
-    // double-click, a retry) can't both see StripeCustomerId as null and each
-    // create a separate Stripe customer; only the last SaveChangesAsync would
-    // "win" in the DB, leaving whichever SetupIntent the user actually
-    // confirmed pointed at a customer the DB no longer agrees is theirs. Found
-    // via the Playwright system test suite exercising checkout concurrently,
-    // which surfaced it as "payment method already attached to a customer"
-    // several requests later, in StripeSubscriptionService.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> CustomerLocks = new();
-
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
-
-    private async Task<string> EnsureStripeCustomerAsync(User user)
-    {
-        if (user.StripeCustomerId is not null)
-        {
-            return user.StripeCustomerId;
-        }
-
-        var userLock = CustomerLocks.GetOrAdd(user.Id, _ => new SemaphoreSlim(1, 1));
-        await userLock.WaitAsync();
-        try
-        {
-            // re-check after acquiring the lock: another request for this same
-            // user may have just finished creating the customer while we waited
-            await db.Entry(user).ReloadAsync();
-            if (user.StripeCustomerId is not null)
-            {
-                return user.StripeCustomerId;
-            }
-
-            user.StripeCustomerId = await stripe.CreateCustomerAsync(user.Email, user.DisplayName);
-            await db.SaveChangesAsync();
-            return user.StripeCustomerId;
-        }
-        finally
-        {
-            userLock.Release();
-        }
-    }
 
     private static SubscriptionResponse ToResponse(Subscription s, string tierName, string? clientSecretForAction = null) =>
         new(s.Id, s.TierId, tierName, s.Status, s.StartedAt, s.CurrentPeriodEnd, clientSecretForAction);
@@ -111,7 +71,7 @@ public class SubscriptionsController(
 
         try
         {
-            var customerId = await EnsureStripeCustomerAsync(user);
+            var customerId = await StripeCustomerProvisioner.EnsureCustomerAsync(db, stripe, user);
             var clientSecret = await stripe.CreateSetupIntentAsync(customerId);
 
             return Ok(new SetupIntentResponse(clientSecret, stripeOptions.Value.PublishableKey));
@@ -146,7 +106,7 @@ public class SubscriptionsController(
 
         try
         {
-            var customerId = await EnsureStripeCustomerAsync(user);
+            var customerId = await StripeCustomerProvisioner.EnsureCustomerAsync(db, stripe, user);
             var result = await stripe.CreateSubscriptionAsync(
                 customerId, request.PaymentMethodId, tier.Name, tier.Price);
 
@@ -166,6 +126,95 @@ public class SubscriptionsController(
             await db.SaveChangesAsync();
 
             return Ok(ToResponse(subscription, tier.Name, result.ClientSecretForAction));
+        }
+        catch (StripeException ex)
+        {
+            return StripeUnavailable(ex);
+        }
+    }
+
+    [HttpPost("cancel")]
+    public async Task<IActionResult> Cancel()
+    {
+        var subscription = await db.Subscriptions
+            .Where(s => s.MemberId == CurrentUserId && s.Status == SubscriptionStatus.Active)
+            .OrderByDescending(s => s.StartedAt)
+            .FirstOrDefaultAsync();
+
+        if (subscription is null)
+        {
+            return NotFound("No active subscription to cancel.");
+        }
+
+        try
+        {
+            if (subscription.StripeSubscriptionId is not null)
+            {
+                await stripe.CancelSubscriptionAsync(subscription.StripeSubscriptionId);
+            }
+        }
+        catch (StripeException ex)
+        {
+            return StripeUnavailable(ex);
+        }
+
+        // Update immediately rather than waiting on the webhook, so gated
+        // content reverts to locked on the member's very next request; the
+        // later customer.subscription.deleted webhook re-applies the same
+        // state, which is harmless.
+        subscription.Status = SubscriptionStatus.Canceled;
+        subscription.CanceledAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    [HttpPost("change-tier")]
+    public async Task<ActionResult<SubscriptionResponse>> ChangeTier(ChangeTierRequest request)
+    {
+        var subscription = await db.Subscriptions
+            .Include(s => s.Tier)
+            .Where(s => s.MemberId == CurrentUserId && s.Status == SubscriptionStatus.Active)
+            .OrderByDescending(s => s.StartedAt)
+            .FirstOrDefaultAsync();
+
+        if (subscription is null)
+        {
+            return NotFound("No active subscription to change.");
+        }
+
+        var newTier = await db.MembershipTiers.FindAsync(request.NewTierId);
+        if (newTier is null)
+        {
+            return NotFound("Tier not found.");
+        }
+
+        if (newTier.CreatorId != subscription.Tier.CreatorId)
+        {
+            return BadRequest("You can only switch between tiers from the creator you're already subscribed to.");
+        }
+
+        if (newTier.Id == subscription.TierId)
+        {
+            return BadRequest("You are already subscribed to this tier.");
+        }
+
+        if (subscription.StripeSubscriptionId is null)
+        {
+            return Conflict("This subscription has no associated Stripe subscription to update.");
+        }
+
+        try
+        {
+            var result = await stripe.ChangeSubscriptionTierAsync(
+                subscription.StripeSubscriptionId, newTier.Name, newTier.Price);
+
+            subscription.TierId = newTier.Id;
+            subscription.Status = MapStripeStatus(result.RawStatus);
+            subscription.CurrentPeriodEnd = result.CurrentPeriodEnd;
+            await db.SaveChangesAsync();
+
+            return Ok(ToResponse(subscription, newTier.Name, result.ClientSecretForAction));
         }
         catch (StripeException ex)
         {

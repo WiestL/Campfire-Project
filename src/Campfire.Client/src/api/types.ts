@@ -116,6 +116,25 @@ export interface CreatorAnalytics {
   subscribersByTier: TierSubscriberCount[]
 }
 
+export interface UpdateProfileRequest {
+  displayName: string
+  email: string
+  currentPassword: string
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface PaymentMethodInfo {
+  id: string
+  brand: string
+  last4: string
+  expMonth: number
+  expYear: number
+}
+
 export interface ApiError {
   message: string
 }

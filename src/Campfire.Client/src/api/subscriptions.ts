@@ -15,3 +15,14 @@ export function createSubscription(tierId: string, paymentMethodId: string, toke
     body: JSON.stringify({ tierId, paymentMethodId }),
   }, token)
 }
+
+export function cancelSubscription(token: string | null) {
+  return apiFetch<void>('/subscriptions/cancel', { method: 'POST' }, token)
+}
+
+export function changeSubscriptionTier(newTierId: string, token: string | null) {
+  return apiFetch<SubscriptionInfo>('/subscriptions/change-tier', {
+    method: 'POST',
+    body: JSON.stringify({ newTierId }),
+  }, token)
+}

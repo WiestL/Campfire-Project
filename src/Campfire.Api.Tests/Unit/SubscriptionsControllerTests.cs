@@ -302,4 +302,131 @@ public class SubscriptionsControllerTests
         Assert.That(objectResult.StatusCode, Is.EqualTo(502));
         Assert.That(db.Subscriptions, Is.Empty);
     }
+
+    [Test]
+    public async Task Cancel_WithNoActiveSubscription_ReturnsNotFound()
+    {
+        await using var db = CreateDb();
+        var member = await AddMemberAsync(db);
+        var controller = CreateController(db, member.Id, new Mock<IStripeSubscriptionService>());
+
+        var result = await controller.Cancel();
+
+        Assert.That(result, Is.InstanceOf<NotFoundObjectResult>());
+    }
+
+    [Test]
+    public async Task Cancel_WithActiveSubscription_CancelsOnStripeAndMarksCanceledLocallyRightAway()
+    {
+        await using var db = CreateDb();
+        var member = await AddMemberAsync(db, stripeCustomerId: "cus_1");
+        var tier = await AddTierAsync(db);
+        db.Subscriptions.Add(new Subscription
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            TierId = tier.Id,
+            Status = SubscriptionStatus.Active,
+            StripeSubscriptionId = "sub_abc",
+            StartedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var stripeMock = new Mock<IStripeSubscriptionService>();
+        var controller = CreateController(db, member.Id, stripeMock);
+
+        var result = await controller.Cancel();
+
+        Assert.That(result, Is.InstanceOf<NoContentResult>());
+        stripeMock.Verify(s => s.CancelSubscriptionAsync("sub_abc", It.IsAny<CancellationToken>()), Times.Once);
+        var stored = db.Subscriptions.Single();
+        Assert.That(stored.Status, Is.EqualTo(SubscriptionStatus.Canceled));
+        Assert.That(stored.CanceledAt, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task ChangeTier_ToATierFromADifferentCreator_IsRejected()
+    {
+        await using var db = CreateDb();
+        var member = await AddMemberAsync(db, stripeCustomerId: "cus_1");
+        var currentTier = await AddTierAsync(db);
+        var otherCreatorsTier = await AddTierAsync(db); // a fresh, unrelated creator per AddTierAsync
+        db.Subscriptions.Add(new Subscription
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            TierId = currentTier.Id,
+            Status = SubscriptionStatus.Active,
+            StripeSubscriptionId = "sub_abc",
+            StartedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, member.Id, new Mock<IStripeSubscriptionService>());
+        var result = await controller.ChangeTier(new ChangeTierRequest(otherCreatorsTier.Id));
+
+        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
+        Assert.That(db.Subscriptions.Single().TierId, Is.EqualTo(currentTier.Id));
+    }
+
+    [Test]
+    public async Task ChangeTier_ToTheSameTierAlreadySubscribedTo_IsRejected()
+    {
+        await using var db = CreateDb();
+        var member = await AddMemberAsync(db, stripeCustomerId: "cus_1");
+        var tier = await AddTierAsync(db);
+        db.Subscriptions.Add(new Subscription
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            TierId = tier.Id,
+            Status = SubscriptionStatus.Active,
+            StripeSubscriptionId = "sub_abc",
+            StartedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, member.Id, new Mock<IStripeSubscriptionService>());
+        var result = await controller.ChangeTier(new ChangeTierRequest(tier.Id));
+
+        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
+    }
+
+    [Test]
+    public async Task ChangeTier_ToAValidHigherTierFromTheSameCreator_UpdatesTheSubscriptionInPlace()
+    {
+        await using var db = CreateDb();
+        var member = await AddMemberAsync(db, stripeCustomerId: "cus_1");
+        var lowTier = await AddTierAsync(db);
+        var highTier = new MembershipTier
+        {
+            Id = Guid.NewGuid(),
+            CreatorId = lowTier.CreatorId,
+            Name = "Platinum",
+            Description = "desc",
+            Price = 19.99m,
+            Level = 2,
+        };
+        db.MembershipTiers.Add(highTier);
+        db.Subscriptions.Add(new Subscription
+        {
+            Id = Guid.NewGuid(),
+            MemberId = member.Id,
+            TierId = lowTier.Id,
+            Status = SubscriptionStatus.Active,
+            StripeSubscriptionId = "sub_abc",
+            StartedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var stripeMock = new Mock<IStripeSubscriptionService>();
+        stripeMock.Setup(s => s.ChangeSubscriptionTierAsync("sub_abc", "Platinum", 19.99m, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeSubscriptionResult("sub_abc", "active", DateTime.UtcNow.AddMonths(1), null));
+        var controller = CreateController(db, member.Id, stripeMock);
+
+        var result = await controller.ChangeTier(new ChangeTierRequest(highTier.Id));
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        Assert.That(db.Subscriptions.Single().TierId, Is.EqualTo(highTier.Id));
+    }
 }

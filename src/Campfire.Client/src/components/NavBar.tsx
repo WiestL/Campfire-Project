@@ -19,7 +19,7 @@ export function NavBar() {
           )}
         </nav>
         <div className="navbar-user">
-          <span className="navbar-name">{user?.displayName}</span>
+          <Link to="/account" className="navbar-name">{user?.displayName}</Link>
           <button type="button" className="navbar-logout" onClick={logout}>
             Log out
           </button>
