@@ -6,6 +6,7 @@ import { RoleDashboard } from './pages/RoleDashboard'
 import { NewContentPage } from './pages/NewContentPage'
 import { TierManagementPage } from './pages/TierManagementPage'
 import { AccountSettingsPage } from './pages/AccountSettingsPage'
+import { MembershipPage } from './pages/MembershipPage'
 import './App.css'
 
 function App() {
@@ -42,6 +43,14 @@ function App() {
         element={
           <ProtectedRoute>
             <AccountSettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/membership"
+        element={
+          <ProtectedRoute allowedRoles={['Member']}>
+            <MembershipPage />
           </ProtectedRoute>
         }
       />

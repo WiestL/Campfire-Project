@@ -43,6 +43,8 @@ test('a Member can subscribe to a tier with a real Stripe test card and see it r
   await page.locator('label:has-text("Password") input').fill('password123')
   await page.click('button[type="submit"]')
   await expect(page).toHaveURL('/')
+  await page.click('text=Membership')
+  await expect(page).toHaveURL('/membership')
 
   const tierCard = page.locator('.tier-card', { hasText: tierName })
   await tierCard.locator('button:has-text("Subscribe")').click()

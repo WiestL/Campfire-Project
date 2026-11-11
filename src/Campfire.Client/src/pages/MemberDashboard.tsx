@@ -1,7 +1,7 @@
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Feed } from '../components/Feed'
 import { NavBar } from '../components/NavBar'
-import { TierSelection } from '../components/TierSelection'
 
 export function MemberDashboard() {
   const { user } = useAuth()
@@ -15,8 +15,13 @@ export function MemberDashboard() {
         </header>
         <p>Welcome back, {user?.displayName}.</p>
 
-        <h2 className="feed-heading">Choose your membership</h2>
-        <TierSelection />
+        <section className="dashboard-grid">
+          <article className="dashboard-card">
+            <h2>Memberships</h2>
+            <p>Browse creators' tiers and manage your subscription.</p>
+            <Link to="/membership">Choose your membership</Link>
+          </article>
+        </section>
 
         <h2 className="feed-heading">Feed</h2>
         <Feed />

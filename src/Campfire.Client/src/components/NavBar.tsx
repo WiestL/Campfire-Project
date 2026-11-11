@@ -17,6 +17,7 @@ export function NavBar() {
               <Link to="/tiers">Tiers</Link>
             </>
           )}
+          {user?.role === 'Member' && <Link to="/membership">Membership</Link>}
         </nav>
         <div className="navbar-user">
           <Link to="/account" className="navbar-name">{user?.displayName}</Link>
