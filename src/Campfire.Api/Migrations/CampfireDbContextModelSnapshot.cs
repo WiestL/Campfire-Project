@@ -22,6 +22,42 @@ namespace Campfire.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Campfire.Api.Models.Comment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ParentCommentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentId");
+
+                    b.HasIndex("ParentCommentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Comments");
+                });
+
             modelBuilder.Entity("Campfire.Api.Models.Content", b =>
                 {
                     b.Property<Guid>("Id")
@@ -61,6 +97,31 @@ namespace Campfire.Api.Migrations
                     b.HasIndex("RequiredTierId");
 
                     b.ToTable("Content");
+                });
+
+            modelBuilder.Entity("Campfire.Api.Models.Like", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ContentId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("Likes");
                 });
 
             modelBuilder.Entity("Campfire.Api.Models.MembershipTier", b =>
@@ -168,6 +229,32 @@ namespace Campfire.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Campfire.Api.Models.Comment", b =>
+                {
+                    b.HasOne("Campfire.Api.Models.Content", "Content")
+                        .WithMany("Comments")
+                        .HasForeignKey("ContentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Campfire.Api.Models.Comment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Campfire.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+
+                    b.Navigation("ParentComment");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Campfire.Api.Models.Content", b =>
                 {
                     b.HasOne("Campfire.Api.Models.User", "Creator")
@@ -184,6 +271,25 @@ namespace Campfire.Api.Migrations
                     b.Navigation("Creator");
 
                     b.Navigation("RequiredTier");
+                });
+
+            modelBuilder.Entity("Campfire.Api.Models.Like", b =>
+                {
+                    b.HasOne("Campfire.Api.Models.Content", "Content")
+                        .WithMany("Likes")
+                        .HasForeignKey("ContentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Campfire.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Campfire.Api.Models.MembershipTier", b =>
@@ -214,6 +320,18 @@ namespace Campfire.Api.Migrations
                     b.Navigation("Member");
 
                     b.Navigation("Tier");
+                });
+
+            modelBuilder.Entity("Campfire.Api.Models.Comment", b =>
+                {
+                    b.Navigation("Replies");
+                });
+
+            modelBuilder.Entity("Campfire.Api.Models.Content", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Likes");
                 });
 
             modelBuilder.Entity("Campfire.Api.Models.MembershipTier", b =>

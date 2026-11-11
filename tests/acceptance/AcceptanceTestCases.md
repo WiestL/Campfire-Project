@@ -1,7 +1,6 @@
 # Campfire — Acceptance Test Cases (Draft)
 
-Status: **Draft.** Case design is complete; execution is manual and in progress
-per the Week 11 milestone. Cases marked "Covered by System suite" have also
+Status: **Draft.** Case design is complete; execution is manual and in progress. Cases marked "Covered by System suite" have also
 been exercised automatically as a side effect of the Playwright System tests
 in `tests/system/`, since those already drive the real UI end to end; the
 rest are intended to be walked through manually against the live stack before
@@ -40,31 +39,3 @@ implementation detail. Pass/Fail is recorded as cases are actually run.
 | ACC-A1 | As an admin, I want to see every tier-gated post regardless of my own subscriptions, so I can moderate the platform. | 1. Log in as the seeded Admin account. 2. View the feed, including a tier-gated post from any creator. | The post is fully visible (title, body, media), never shown as locked. | Manual — pending |
 | ACC-A2 | As a platform owner, I want to know admin accounts can't just be created by anyone registering, so the role can't be self-granted. | 1. Go to /register. 2. Check the role selector. | Only "Member" and "Creator" are offered; there is no way to register directly as Admin from the public form. | Manual — pending |
 
-## Usability consideration
-
-**ACC-U1 (required usability check per the assignment):** A first-time member
-should be able to tell, without reading any documentation, (a) what a tier
-costs before committing to pay, (b) whether a given subscribe action
-succeeded, and (c) why a specific piece of content is unavailable to them.
-This was evaluated directly against the real UI during manual review of the
-Week 10 redesign: tier price is shown on every tier card before the checkout
-modal ever opens (ACC-M2), a plain-text success message confirms a completed
-subscription (ACC-M3), and locked content names the exact tier required
-rather than showing a generic "no access" message (ACC-M4). The one gap found
-during this review is ACC-M5 (decline handling) and ACC-M6 (no cancellation
-flow yet), both tracked as open risk/scope items rather than silently assumed
-to work.
-
-## Notes on method
-
-Acceptance criteria above were derived directly from the features actually
-implemented against the project's own requirement set (REQ-001 through
-REQ-007, informally tracked across the weekly build log rather than a
-separate formal PID document), not reverse-engineered from the code — each
-row states what a user should be able to tell by looking at the product, not
-which function gets called. Cases already covered by the automated System
-suite are marked as such rather than re-asserted as separate automation,
-since re-testing identical behavior through a second automated path would not
-add information; the remaining manual cases are scheduled to be walked
-through and recorded (pass/fail, with screenshots) before the Week 15 final
-demonstration.

@@ -24,7 +24,10 @@ public record ContentResponse(
     string? RequiredTierName,
     bool IsLocked,
     DateTime CreatedAt,
-    DateTime? PublishedAt
+    DateTime? PublishedAt,
+    int LikeCount,
+    bool LikedByCurrentUser,
+    int CommentCount
 );
 
 public record UploadResponse(string StoragePath, string FileName, long SizeBytes);

@@ -296,6 +296,142 @@
   color: white;
 }
 
+/* Likes and comments */
+
+.feed-engagement {
+  margin-top: 14px;
+}
+
+.feed-engagement-bar {
+  display: flex;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.like-button,
+.comment-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.like-button.liked {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.comment-thread {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comment-form {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-form input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.comment-form button {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comment-form button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-list.replies {
+  margin-left: 22px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+
+.comment-thread-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comment-row {
+  background: var(--social-bg);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.comment-meta {
+  font-size: 12px;
+  color: var(--tan);
+  font-weight: 600;
+}
+
+.comment-hidden-tag {
+  color: var(--accent);
+}
+
+.comment-body {
+  font-size: 14px;
+  color: var(--text-h);
+  margin-top: 2px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.comment-action,
+.reply-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.reply-form {
+  margin-left: 22px;
+}
+
 /* Tier management form */
 
 .tier-form {

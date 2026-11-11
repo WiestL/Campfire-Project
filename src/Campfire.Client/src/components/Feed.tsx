@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { getFeed } from '../api/content'
+import { getFeed, toggleLike } from '../api/content'
 import { ApiRequestError } from '../api/client'
+import { CommentThread } from './CommentThread'
 import type { ContentItem } from '../api/types'
 
 function MediaPreview({ item }: { item: ContentItem }) {
@@ -13,6 +14,30 @@ function MediaPreview({ item }: { item: ContentItem }) {
     return <audio className="feed-media" src={item.mediaUrl} controls />
   }
   return null
+}
+
+function FeedItemEngagement({ item, onLikeToggled }: { item: ContentItem; onLikeToggled: (next: { likeCount: number; likedByCurrentUser: boolean }) => void }) {
+  const { token } = useAuth()
+  const [commentsOpen, setCommentsOpen] = useState(false)
+
+  async function handleLike() {
+    const status = await toggleLike(item.id, token)
+    onLikeToggled(status)
+  }
+
+  return (
+    <div className="feed-engagement">
+      <div className="feed-engagement-bar">
+        <button type="button" className={item.likedByCurrentUser ? 'like-button liked' : 'like-button'} onClick={handleLike}>
+          {item.likedByCurrentUser ? 'Liked' : 'Like'} · {item.likeCount}
+        </button>
+        <button type="button" className="comment-toggle" onClick={() => setCommentsOpen((open) => !open)}>
+          {item.commentCount} comment{item.commentCount === 1 ? '' : 's'}
+        </button>
+      </div>
+      {commentsOpen && <CommentThread item={item} />}
+    </div>
+  )
 }
 
 export function Feed() {
@@ -31,6 +56,10 @@ export function Feed() {
   if (error) return <p className="auth-error">{error}</p>
   if (items === null) return <p className="placeholder">Loading feed…</p>
   if (items.length === 0) return <p className="placeholder">No content published yet.</p>
+
+  function updateItem(id: string, patch: Partial<ContentItem>) {
+    setItems((current) => current && current.map((i) => (i.id === id ? { ...i, ...patch } : i)))
+  }
 
   return (
     <div className="feed">
@@ -55,6 +84,9 @@ export function Feed() {
               {!item.mediaUrl && !item.isLocked && <> · {item.type}</>}
             </p>
             {!item.isLocked && <p>{item.body}</p>}
+            {!item.isLocked && (
+              <FeedItemEngagement item={item} onLikeToggled={(status) => updateItem(item.id, { likeCount: status.likeCount, likedByCurrentUser: status.likedByCurrentUser })} />
+            )}
           </div>
         </article>
       ))}

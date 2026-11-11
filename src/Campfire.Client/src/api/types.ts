@@ -32,6 +32,26 @@ export interface ContentItem {
   isLocked: boolean
   createdAt: string
   publishedAt: string | null
+  likeCount: number
+  likedByCurrentUser: boolean
+  commentCount: number
+}
+
+export interface LikeStatus {
+  likeCount: number
+  likedByCurrentUser: boolean
+}
+
+export interface Comment {
+  id: string
+  contentId: string
+  userId: string
+  authorDisplayName: string
+  body: string | null
+  parentCommentId: string | null
+  isHidden: boolean
+  createdAt: string
+  replies: Comment[]
 }
 
 export interface CreateContentRequest {
