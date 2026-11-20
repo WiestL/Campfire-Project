@@ -695,3 +695,91 @@
   border: 1px solid var(--border);
   background: white;
 }
+
+/* Responsive: tablet and down */
+
+@media (max-width: 640px) {
+  .navbar-inner {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .navbar-links {
+    order: 3;
+    flex: 1 1 100%;
+    gap: 16px;
+  }
+
+  .dashboard {
+    padding: 24px 16px 48px;
+  }
+
+  .auth-form {
+    padding: 24px;
+  }
+
+  .tier-form-row {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .stat-table th,
+  .stat-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .modal-content {
+    max-width: 100%;
+  }
+
+  .feed-engagement-bar {
+    flex-wrap: wrap;
+  }
+
+  .comment-list.replies {
+    margin-left: 12px;
+    padding-left: 10px;
+  }
+
+  .reply-form {
+    margin-left: 12px;
+  }
+}
+
+/* Responsive: narrow phones */
+
+@media (max-width: 420px) {
+  .navbar-brand {
+    font-size: 16px;
+  }
+
+  .navbar-user {
+    gap: 8px;
+  }
+
+  .navbar-name {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tier-form,
+  .auth-form.wide {
+    padding: 20px;
+  }
+
+  .stat-row {
+    grid-template-columns: 1fr;
+  }
+
+  .comment-form {
+    flex-direction: column;
+  }
+
+  .comment-form button {
+    align-self: flex-start;
+  }
+}
